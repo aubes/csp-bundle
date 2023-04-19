@@ -1,5 +1,7 @@
 # Content Security Policy Bundle
 
+![CI](https://github.com/aubes/csp-bundle/actions/workflows/php.yml/badge.svg)
+
 This Symfony bundle provides helper to configure [Content-Security-Policy](https://developer.mozilla.org/fr/docs/Web/HTTP/CSP) headers.
 
 It is compatible with :

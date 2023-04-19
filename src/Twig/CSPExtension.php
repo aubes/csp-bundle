@@ -32,10 +32,6 @@ class CSPExtension extends AbstractExtension
 
     public function nonce(string $directive, string $groupName = null, string $nonce = null): string
     {
-        if (!\in_array($directive, CSPDirective::ALL)) {
-            throw new \InvalidArgumentException('Unknown directive ' . $directive);
-        }
-
         if ($nonce === null) {
             $nonce = \base64_encode($this->generator->generate(8));
         }

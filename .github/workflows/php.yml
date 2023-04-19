@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          -   php-version: '7.4'
+          -   php-version: '8.1'
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup PHP version
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+
+    - name: Validate composer.json and composer.lock
+      run: composer validate --strict
+
+    - name: Cache Composer packages
+      id: composer-cache
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Run static analysis
+      run: |
+        vendor/bin/php-cs-fixer fix --allow-risky=yes --config=.php-cs-fixer.php --dry-run --verbose
+        vendor/bin/phpmd src text .pmd-ruleset.xml
+        vendor/bin/psalm --show-info=true --php-version=${{ matrix.php-version }}
+
+    - name: Run test suite
+      run: composer run-script test

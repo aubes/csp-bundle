@@ -43,7 +43,7 @@ class ReportTo
         return $urls;
     }
 
-    public function render(): string
+    public function render(): array
     {
         $reportArray = [
             'group' => $this->getGroupName(),
@@ -57,6 +57,6 @@ class ReportTo
             ];
         }
 
-        return \json_encode($reportArray, \JSON_THROW_ON_ERROR);
+        return $reportArray;
     }
 }

@@ -28,14 +28,14 @@ class CSPListener
             return;
         }
 
-        if (\in_array($event->getRequest()->attributes->get('_route'), $this->reportRoutes)) {
+        if (\in_array($event->getRequest()->attributes->get('_route', null), $this->reportRoutes)) {
             return;
         }
 
         $response = $event->getResponse();
 
         $reportTo = [];
-        $currentGroupNames = (array) $event->getRequest()->attributes->get('_csp_groups');
+        $currentGroupNames = (array) $event->getRequest()->attributes->get('_csp_groups', []);
 
         foreach ($this->csp->getPolicies($currentGroupNames) as $policy) {
             $headerName = $policy->isReportOnly() ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
@@ -49,7 +49,7 @@ class CSPListener
         }
 
         if (!empty($reportTo)) {
-            $response->headers->add(['Report-To' => $reportTo]);
+            $response->headers->add(['Report-To' => \json_encode($reportTo, \JSON_THROW_ON_ERROR)]);
         }
     }
 }
