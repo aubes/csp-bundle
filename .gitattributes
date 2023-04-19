@@ -1,0 +1,8 @@
+/.github export-ignore
+/tests export-ignore
+/.php-cs-fixer.php export-ignore
+/.pmd-ruleset.xml export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/phpunit.xml.dist export-ignore
+/psalm.xml export-ignore

@@ -1,0 +1,19 @@
+services:
+    Aubes\CSPBundle\CSP: ~
+    Aubes\CSPBundle\Uid\Generator: ~
+
+    Aubes\CSPBundle\Controller\ReportController:
+        autowire: true
+        autoconfigure: true
+
+    Aubes\CSPBundle\Twig\CSPExtension:
+        autoconfigure: true
+        arguments:
+            $csp: '@Aubes\CSPBundle\CSP'
+            $generator: '@Aubes\CSPBundle\Uid\Generator'
+
+    Aubes\CSPBundle\Listener\CSPListener:
+        arguments:
+            $csp: '@Aubes\CSPBundle\CSP'
+        tags:
+            - { name: kernel.event_listener, event: kernel.response, method: onKernelResponse }
