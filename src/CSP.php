@@ -18,11 +18,16 @@ class CSP
         }
 
         foreach ($groups as $groupName => $policy) {
-            $this->addPolicy($policy, $groupName);
+            $this->addGroup($policy, $groupName);
         }
 
         $this->defaultGroup = $defaultGroup;
         $this->autoDefault = $autoDefault;
+    }
+
+    public function hasGroup(string $groupName): bool
+    {
+        return \array_key_exists($groupName, $this->policies);
     }
 
     public function setEnabled(bool $enabled): void
@@ -35,7 +40,7 @@ class CSP
         return $this->enabled;
     }
 
-    public function addPolicy(CSPPolicy $policy, string $groupName = null): void
+    public function addGroup(CSPPolicy $policy, string $groupName = null): void
     {
         $this->policies[$groupName ?? $this->defaultGroup] = $policy;
     }

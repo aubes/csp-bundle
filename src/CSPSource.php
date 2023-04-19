@@ -16,13 +16,13 @@ class CSPSource
     public const REPORT_SAMPLE = 'report-sample';
 
     public const ALL = [
-        self::SELF,
-        self::UNSAFE_EVAL,
-        self::WASM_UNSAFE_EVAL,
-        self::UNSAFE_HASHES,
-        self::UNSAFE_INLINE,
-        self::NONE,
-        self::STRICT_DYNAMIC,
-        self::REPORT_SAMPLE,
+        self::SELF => '\'self\'',
+        self::UNSAFE_EVAL => '\'unsafe-eval\'',
+        self::WASM_UNSAFE_EVAL => '\'wasm-unsafe-eval\'',
+        self::UNSAFE_HASHES => '\'unsafe-hashes\'',
+        self::UNSAFE_INLINE => '\'unsafe-inline\'',
+        self::NONE => '\'none\'',
+        self::STRICT_DYNAMIC => '\'strict-dynamic\'',
+        self::REPORT_SAMPLE => '\'report-sample\'',
     ];
 }

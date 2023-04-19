@@ -1,3 +1,4 @@
 csp_report:
     path: /csp-report/{group}
     controller: Aubes\CSPBundle\Controller\ReportController::__invoke
+    methods: ['POST']

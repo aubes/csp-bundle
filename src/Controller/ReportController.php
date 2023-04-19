@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aubes\CSPBundle\Controller;
 
+use Aubes\CSPBundle\CSP;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,8 +25,12 @@ class ReportController extends AbstractController
         $this->level = $level;
     }
 
-    public function __invoke(string $group, Request $request): Response
+    public function __invoke(string $group, Request $request, CSP $csp): Response
     {
+        if (!$csp->hasGroup($group)) {
+            throw $this->createNotFoundException();
+        }
+
         $this->logger->log($this->level, 'csp_report', ['extra' => [
             'group' => $group,
             'content' => $request->getContent(),

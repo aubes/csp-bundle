@@ -22,28 +22,28 @@ csp:
     # Default name is required when multiple group are defined
     # When only one group is defined, it becomes the default group
     default_group: ~
-    
+
     # Add default group CSP headers in each response
     auto_default: false
 
     groups:
-        # Use 'Content-Security-Policy-Report-Only' header instead of 'Content-Security-Policy'
-        report_only: false
-        
         # Name of the policy group
-        default_example:            
+        default_example:
+            # Use 'Content-Security-Policy-Report-Only' header instead of 'Content-Security-Policy'
+            report_only: false
+
             policies:
-                # Use directive name
+                # Use directive name, reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
                 base-uri:
                     # Internal source are supported, and simple quote are automatically added
                     - self
 
                     # Constant can be used for internal source
                     - !php/const Aubes\CSPBundle\CSPSource::SELF
-                    
+
                     # Source reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/Sources
                     - 'https://example.com'
-                
+
                 # Use Php constant instead of directive name
                 !php/const Aubes\CSPBundle\CSPDirective::SCRIPT_SRC:
                     - # Source
@@ -51,6 +51,7 @@ csp:
         another_group:
             # [...]
 ```
+
 ## Usage
 
 ### Add CSP Headers
@@ -59,57 +60,90 @@ csp:
 
 If the `auto_default` configuration is enabled, the default group is injected in each response.
 
+To disabled CSP on specific route:
+
+```yaml
+# config/routes.yaml
+example_routes:
+    # [...]
+    defaults:
+        _csp_disabled: true
+```
+
 #### Manually
 
 ```yaml
 # config/routes.yaml
-Example_routes:
+example_routes:
     # [...]
     defaults:
-        _csp_group: # Group list
+        _csp_groups: [] # Group list
+```
+
+#### Add on the fly directive
+
+```php
+namespace App\Controller;
+
+use Aubes\CSPBundle\CSP;
+use Aubes\CSPBundle\CSPDirective;
+use Aubes\CSPBundle\CSPSource;use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+
+class ExampleController extends AbstractController
+{
+    public function __invoke(CSP $csp)
+    {
+        $csp->addDirective(CSPDirective::SCRIPT_SRC, CSPSource::UNSAFE_INLINE/*, 'default_example'*/);
+
+        return $this->render('csp.html.twig');
+    }
+}
 ```
 
 ### Source nonce
 
-Twig functions are available to add inline element `nonce` in your template.
+Twig functions are available to add inline nonceable element `nonce` in your template.
 
 #### csp_nonce
 
-Arguments:
-* directive: name of the csp directive # required
-* groupName: Group name
-* nonce: base 64 nonce id
+**Arguments**:
+
+* **directive**: name of the csp directive # required
+* **groupName**: Group name, default group is used if not defined
+* **nonce**: base 64 nonce id
 
 ```html
 <!-- templates/example.html.twig -->
 
 <!-- Add a generated nonce on an inline element in the default group -->
-<script {{ csp_nonce('srcipt-src') }}>
+<script {{ csp_nonce('script-src') }}>
     // [...]
 </script>
 
 <!-- Add a generated nonce on an inline element in a specific group -->
-<script {{ csp_nonce('srcipt-src', 'default_example') }}>
-// [...]
+<script {{ csp_nonce('script-src', 'default_example') }}>
+    // [...]
 </script>
 
 <!-- Add a base64 custom nonce on an inline element in a specific group -->
-<script {{ csp_nonce('srcipt-src', 'default_example', 'MTIzNDU2') }}>
-// [...]
+<script {{ csp_nonce('script-src', 'default_example', 'MTIzNDU2') }}>
+    // [...]
 </script>
 ```
 
 #### csp_script_nonce
 
-Arguments:
-* groupName: Group name
-* nonce: base 64 nonce id
+**Arguments**:
+
+* **groupName**: Group name, default group is used if not defined
+* **nonce**: base 64 nonce id
 
 #### csp_style_nonce
 
-Arguments:
-* groupName: Group name
-* nonce: base 64 nonce id
+**Arguments**:
+
+* **groupName**: Group name, default group is used if not defined
+* **nonce**: base 64 nonce id
 
 ### Report
 

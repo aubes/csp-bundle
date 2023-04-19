@@ -16,22 +16,27 @@ class CSPPolicy
     public function __construct(?ReportTo $reportTo, array $policies, bool $reportOnly, bool $bcSupport)
     {
         $this->reportTo = $reportTo;
-        $this->policies = $policies;
         $this->reportOnly = $reportOnly;
         $this->bcSupport = $bcSupport;
 
         foreach ($policies as $directive => $policy) {
-            $this->addPolicy($directive, $policy);
+            foreach ($policy as $source) {
+                $this->addPolicy($directive, $source);
+            }
         }
     }
 
-    public function addPolicy(string $directive, string $value): void
+    public function addPolicy(string $directive, string $source): void
     {
         if (!\in_array($directive, CSPDirective::ALL)) {
             throw new \InvalidArgumentException('Unknown directive ' . $directive);
         }
 
-        $this->policies[$directive][] = $value;
+        if (\array_key_exists($source, CSPSource::ALL)) {
+            $source = CSPSource::ALL[$source];
+        }
+
+        $this->policies[$directive][] = $source;
     }
 
     public function isReportOnly(): bool
