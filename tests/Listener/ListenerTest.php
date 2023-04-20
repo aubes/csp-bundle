@@ -17,6 +17,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
+/**
+ * @covers \Aubes\CSPBundle\Listener\CSPListener
+ */
 class ListenerTest extends TestCase
 {
     use ProphecyTrait;

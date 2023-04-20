@@ -30,6 +30,9 @@
             "/tests"
         ]
     },
+    "autoload-dev": {
+        "psr-4": { "Aubes\\CSPBundle\\Tests\\": "tests" }
+    },
     "scripts": {
         "analyse": [
             "@cs",

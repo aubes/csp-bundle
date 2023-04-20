@@ -10,6 +10,9 @@ use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
 use Prophecy\PhpUnit\ProphecyTrait;
 
+/**
+ * @covers \Aubes\CSPBundle\CSP
+ */
 class CSPTest extends TestCase
 {
     use ProphecyTrait;
@@ -51,5 +54,14 @@ class CSPTest extends TestCase
         $this->assertArrayHasKey('group', $csp->getPolicies());
         $this->assertArrayHasKey('group', $csp->getPolicies(['group']));
         $this->assertEmpty($csp->getPolicies(['unknown']));
+    }
+
+    public function testUnknownDefault()
+    {
+        $cspPolicy = $this->prophesize(CSPPolicy::class);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $csp = new CSP(['group' => $cspPolicy->reveal()], 'unknown', false);
     }
 }

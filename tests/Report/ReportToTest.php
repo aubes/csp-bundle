@@ -11,6 +11,9 @@ use Prophecy\PhpUnit\ProphecyTrait;
 use Symfony\Component\Routing\Router;
 use Symfony\Component\Routing\RouterInterface;
 
+/**
+ * @covers \Aubes\CSPBundle\Report\ReportTo
+ */
 class ReportToTest extends TestCase
 {
     use ProphecyTrait;
