@@ -5,8 +5,8 @@
 This Symfony bundle provides helper to configure [Content-Security-Policy](https://developer.mozilla.org/fr/docs/Web/HTTP/CSP) headers.
 
 It is compatible with :
- * PHP 7.4
- * Symfony 5.4
+ * PHP 7.4 | 8
+ * Symfony 5.4 | 6 | 7
 
 ## Installation
 

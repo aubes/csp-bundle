@@ -22,9 +22,6 @@ use Symfony\Component\HttpKernel\DependencyInjection\Extension;
  */
 class CSPExtension extends Extension
 {
-    /**
-     * {@inheritdoc}
-     */
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
@@ -38,9 +35,8 @@ class CSPExtension extends Extension
         if ($config['default_group'] === null) {
             if (\count($config['groups']) > 1) {
                 throw new \InvalidArgumentException('You must set default group when multiple groups are defined');
-            } else {
-                $defaultGroup = \array_key_first($config['groups']);
             }
+            $defaultGroup = \array_key_first($config['groups']);
         } else {
             $defaultGroup = $config['default_group'];
         }

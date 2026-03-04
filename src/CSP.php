@@ -40,12 +40,12 @@ class CSP
         return $this->enabled;
     }
 
-    public function addGroup(CSPPolicy $policy, string $groupName = null): void
+    public function addGroup(CSPPolicy $policy, ?string $groupName = null): void
     {
         $this->policies[$groupName ?? $this->defaultGroup] = $policy;
     }
 
-    public function addDirective(string $directive, string $value, string $groupName = null): void
+    public function addDirective(string $directive, string $value, ?string $groupName = null): void
     {
         $this->policies[$groupName ?? $this->defaultGroup]->addPolicy($directive, $value);
     }

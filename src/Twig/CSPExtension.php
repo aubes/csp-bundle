@@ -30,7 +30,7 @@ class CSPExtension extends AbstractExtension
         ];
     }
 
-    public function nonce(string $directive, string $groupName = null, string $nonce = null): string
+    public function nonce(string $directive, ?string $groupName = null, ?string $nonce = null): string
     {
         if ($nonce === null) {
             $nonce = \base64_encode($this->generator->generate(8));
@@ -41,12 +41,12 @@ class CSPExtension extends AbstractExtension
         return 'nonce="' . $nonce . '"';
     }
 
-    public function scriptNonce(string $groupName = null, string $nonce = null): string
+    public function scriptNonce(?string $groupName = null, ?string $nonce = null): string
     {
         return $this->nonce(CSPDirective::SCRIPT_SRC, $groupName, $nonce);
     }
 
-    public function styleNonce(string $groupName = null, string $nonce = null): string
+    public function styleNonce(?string $groupName = null, ?string $nonce = null): string
     {
         return $this->nonce(CSPDirective::STYLE_SRC, $groupName, $nonce);
     }
