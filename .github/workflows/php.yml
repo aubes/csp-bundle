@@ -10,45 +10,80 @@ permissions:
   contents: read
 
 jobs:
-  build:
-
+  tests:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         include:
-          -   php-version: '7.4'
-          -   php-version: '8.1'
+          - php-version: '8.2'
+            symfony-version: '^6.4'
+          - php-version: '8.3'
+            symfony-version: '^7.4'
+          - php-version: '8.4'
+            symfony-version: '^8.0'
+          - php-version: '8.5'
+            symfony-version: '^8.0'
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - name: Setup PHP version
+    - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ matrix.php-version }}
+        coverage: none
 
-    - name: Validate composer.json and composer.lock
-      run: composer validate --strict
+    - name: Configure Symfony version
+      run: |
+        composer require --no-update symfony/framework-bundle:${{ matrix.symfony-version }}
+        composer require --no-update symfony/http-foundation:${{ matrix.symfony-version }}
+        composer require --no-update symfony/http-kernel:${{ matrix.symfony-version }}
+        composer require --no-update symfony/routing:${{ matrix.symfony-version }}
+        composer require --no-update --dev symfony/twig-bundle:${{ matrix.symfony-version }}
 
-    - name: Cache Composer packages
-      id: composer-cache
-      uses: actions/cache@v3
+    - name: Install dependencies
+      run: composer update --prefer-dist --no-progress
+
+    - name: Run test suite
+      run: vendor/bin/phpunit tests/
+
+  lowest:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
       with:
-        path: vendor
-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-php-
+        php-version: '8.2'
+        coverage: none
+
+    - name: Install lowest dependencies
+      run: composer update --prefer-dist --prefer-lowest --no-progress
+
+    - name: Run test suite
+      run: vendor/bin/phpunit tests/
+
+  static-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+        coverage: none
 
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
 
-    - name: Run static analysis
-      run: |
-        vendor/bin/php-cs-fixer fix --allow-risky=yes --config=.php-cs-fixer.php --dry-run --verbose
-        vendor/bin/phpmd src text .pmd-ruleset.xml
-        vendor/bin/psalm --show-info=true --php-version=${{ matrix.php-version }}
+    - name: PHPStan
+      run: vendor/bin/phpstan analyse --memory-limit=512M
 
-    - name: Run test suite
-      run: composer run-script test
+    - name: PHP-CS-Fixer
+      run: vendor/bin/php-cs-fixer fix --allow-risky=yes --config=.php-cs-fixer.php --dry-run --verbose

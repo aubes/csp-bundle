@@ -2,23 +2,26 @@
 
 declare(strict_types=1);
 
-namespace Aubes\CSPBundle;
+namespace Aubes\CSPBundle\Model;
 
+use Aubes\CSPBundle\Enum\CSPDirective;
+use Aubes\CSPBundle\Enum\CSPSource;
 use Aubes\CSPBundle\Report\ReportTo;
 
 class CSPPolicy
 {
-    protected ?ReportTo $reportTo;
-    protected array $policies = [];
-    protected bool $reportOnly;
-    protected bool $bcSupport;
+    /** @var array<string, list<string>> */
+    private array $policies = [];
 
-    public function __construct(?ReportTo $reportTo, array $policies, bool $reportOnly, bool $bcSupport)
-    {
-        $this->reportTo = $reportTo;
-        $this->reportOnly = $reportOnly;
-        $this->bcSupport = $bcSupport;
-
+    /**
+     * @param array<string, list<string>> $policies
+     */
+    public function __construct(
+        private readonly ?ReportTo $reportTo,
+        array $policies,
+        private readonly bool $reportOnly,
+        private readonly bool $bcSupport,
+    ) {
         foreach ($policies as $directive => $policy) {
             foreach ($policy as $source) {
                 $this->addPolicy($directive, $source);
@@ -28,15 +31,18 @@ class CSPPolicy
 
     public function addPolicy(string $directive, string $source): void
     {
-        if (!\in_array($directive, CSPDirective::ALL)) {
+        if (CSPDirective::tryFrom($directive) === null) {
             throw new \InvalidArgumentException('Unknown directive ' . $directive);
         }
 
-        if (\array_key_exists($source, CSPSource::ALL)) {
-            $source = CSPSource::ALL[$source];
+        $cspSource = CSPSource::tryFrom($source);
+        if ($cspSource !== null) {
+            $source = $cspSource->quoted();
         }
 
-        $this->policies[$directive][] = $source;
+        if (!\in_array($source, $this->policies[$directive] ?? [], true)) {
+            $this->policies[$directive][] = $source;
+        }
     }
 
     public function isReportOnly(): bool
@@ -54,6 +60,14 @@ class CSPPolicy
         return $this->reportTo;
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
+    public function getPolicies(): array
+    {
+        return $this->policies;
+    }
+
     public function render(): string
     {
         $output = [];
@@ -66,11 +80,7 @@ class CSPPolicy
             $output[] = 'report-to ' . $this->reportTo->getGroupName();
 
             if ($this->isBCSupport()) {
-                $endpoints = [];
-                foreach ($this->reportTo->getUrlEndpoints(false) as $endpoint) {
-                    $endpoints[] = $endpoint;
-                }
-
+                $endpoints = $this->reportTo->getUrlEndpoints(false);
                 $output[] = 'report-uri ' . \implode(' ', $endpoints);
             }
         }

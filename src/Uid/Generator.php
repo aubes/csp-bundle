@@ -12,6 +12,6 @@ class Generator implements GeneratorInterface
             throw new \InvalidArgumentException('Length must be 1 or greater');
         }
 
-        return \bin2hex(\random_bytes($length));
+        return \random_bytes($length);
     }
 }

@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace Aubes\CSPBundle\Tests\Uid;
 
 use Aubes\CSPBundle\Uid\Generator;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
-/**
- * @covers \Aubes\CSPBundle\Uid\Generator
- */
+#[CoversClass(Generator::class)]
 class GeneratorTest extends TestCase
 {
-    public function testGenerate()
+    public function testGenerate(): void
     {
         $generator = new Generator();
 
-        $this->assertSame(16, \mb_strlen($generator->generate(8)));
+        $result = $generator->generate(16);
+        $this->assertSame(16, \strlen($result));
     }
 
-    public function testGenerateNegativeLength()
+    public function testGenerateNegativeLength(): void
     {
         $generator = new Generator();
 

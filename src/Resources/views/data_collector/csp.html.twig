@@ -1,0 +1,196 @@
+{% extends '@WebProfiler/Profiler/layout.html.twig' %}
+
+{% block toolbar %}
+    {% set icon %}
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span class="sf-toolbar-value">CSP</span>
+    {% endset %}
+
+    {% set text %}
+        <div class="sf-toolbar-info-piece">
+            <b>Enabled</b>
+            <span class="sf-toolbar-status sf-toolbar-status-{{ collector.enabled ? 'green' : 'red' }}">
+                {{ collector.enabled ? 'Yes' : 'No' }}
+            </span>
+        </div>
+        <div class="sf-toolbar-info-piece">
+            <b>Groups</b>
+            <span>{{ collector.groups|length > 0 ? collector.groups|join(', ') : 'default' }}</span>
+        </div>
+        <div class="sf-toolbar-info-piece">
+            <b>Directives</b>
+            <span class="sf-toolbar-status">{{ collector.directives|length }}</span>
+        </div>
+    {% endset %}
+
+    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: profiler_url, status: not collector.enabled ? 'red' : (collector.directiveWarnings|length > 0 ? 'yellow' : '') }) }}
+{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+    <style>
+        .csp-header-raw {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+        .csp-directive-name {
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+        }
+        .csp-source-keyword {
+            color: #b854d4;
+        }
+        .csp-source-nonce {
+            color: #1976D2;
+        }
+        .csp-source-hash {
+            color: #E65100;
+        }
+        .csp-source-url {
+            color: #2E7D32;
+        }
+    </style>
+{% endblock %}
+
+{% block menu %}
+    <span class="label {{ not collector.enabled ? 'disabled' }}">
+        <span class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+        </span>
+        <strong>CSP</strong>
+    </span>
+{% endblock %}
+
+{% block panel %}
+    <h2>Content-Security-Policy</h2>
+
+    {% if not collector.enabled %}
+        <div class="empty">
+            <p>CSP is disabled for this request.</p>
+        </div>
+    {% else %}
+        <div class="metrics">
+            <div class="metric">
+                <span class="value">{{ collector.directives|length }}</span>
+                <span class="label">Directives</span>
+            </div>
+            <div class="metric">
+                <span class="value">{{ collector.groups|length > 0 ? collector.groups|join(', ') : 'default' }}</span>
+                <span class="label">Group(s)</span>
+            </div>
+        </div>
+
+        {% if collector.directiveWarnings|length > 0 %}
+            <div class="sf-toolbar-info-group">
+                <h3>Directive Warnings</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Directive</th>
+                            <th>Group</th>
+                            <th>Warning</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for warning in collector.directiveWarnings %}
+                            <tr class="status-warning">
+                                <td class="csp-directive-name">{{ warning.directive }}</td>
+                                <td>{{ warning.group }}</td>
+                                <td>{{ warning.message }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+        {% if collector.cspHeader %}
+            <h3>Content-Security-Policy</h3>
+            <div class="csp-header-raw">{{ collector.cspHeader }}</div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Directive</th>
+                        <th>Sources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for directive, sources in collector.directives %}
+                        <tr>
+                            <td class="csp-directive-name">{{ directive }}</td>
+                            <td>
+                                {% if sources %}
+                                    {% for source in sources|split(' ') %}
+                                        {% if source starts with "'nonce-" %}
+                                            <span class="csp-source-nonce">{{ source }}</span>
+                                        {% elseif source starts with "'sha" %}
+                                            <span class="csp-source-hash">{{ source }}</span>
+                                        {% elseif source starts with "'" %}
+                                            <span class="csp-source-keyword">{{ source }}</span>
+                                        {% else %}
+                                            <span class="csp-source-url">{{ source }}</span>
+                                        {% endif %}
+                                        {{ not loop.last ? ' ' }}
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% if collector.cspRoHeader %}
+            <h3>Content-Security-Policy-Report-Only</h3>
+            <div class="csp-header-raw">{{ collector.cspRoHeader }}</div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Directive</th>
+                        <th>Sources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for directive, sources in collector.directivesRo %}
+                        <tr>
+                            <td class="csp-directive-name">{{ directive }}</td>
+                            <td>
+                                {% if sources %}
+                                    {% for source in sources|split(' ') %}
+                                        {% if source starts with "'nonce-" %}
+                                            <span class="csp-source-nonce">{{ source }}</span>
+                                        {% elseif source starts with "'sha" %}
+                                            <span class="csp-source-hash">{{ source }}</span>
+                                        {% elseif source starts with "'" %}
+                                            <span class="csp-source-keyword">{{ source }}</span>
+                                        {% else %}
+                                            <span class="csp-source-url">{{ source }}</span>
+                                        {% endif %}
+                                        {{ not loop.last ? ' ' }}
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% if collector.reportingEndpoints %}
+            <h3>Reporting-Endpoints</h3>
+            <div class="csp-header-raw">{{ collector.reportingEndpoints }}</div>
+        {% endif %}
+    {% endif %}
+{% endblock %}

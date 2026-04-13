@@ -4,20 +4,15 @@ declare(strict_types=1);
 
 namespace Aubes\CSPBundle\Tests;
 
-use Aubes\CSPBundle\CSPPolicy;
+use Aubes\CSPBundle\Model\CSPPolicy;
 use Aubes\CSPBundle\Report\ReportTo;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Prophecy\Argument;
-use Prophecy\PhpUnit\ProphecyTrait;
 
-/**
- * @covers \Aubes\CSPBundle\CSPPolicy
- */
+#[CoversClass(CSPPolicy::class)]
 class CSPPolicyTest extends TestCase
 {
-    use ProphecyTrait;
-
-    public function testPolicy()
+    public function testPolicy(): void
     {
         $policy = new CSPPolicy(null, [], false, false);
 
@@ -26,7 +21,7 @@ class CSPPolicyTest extends TestCase
         $this->assertSame('script-src whatever', $policy->render());
     }
 
-    public function testOptions()
+    public function testOptions(): void
     {
         $policy = new CSPPolicy(null, [], false, false);
 
@@ -34,15 +29,15 @@ class CSPPolicyTest extends TestCase
         $this->assertFalse($policy->isBCSupport());
         $this->assertFalse($policy->isReportOnly());
 
-        $reportTo = $this->prophesize(ReportTo::class);
-        $policy = new CSPPolicy($reportTo->reveal(), [], true, true);
+        $reportTo = $this->createMock(ReportTo::class);
+        $policy = new CSPPolicy($reportTo, [], true, true);
 
         $this->assertInstanceOf(ReportTo::class, $policy->getReportTo());
         $this->assertTrue($policy->isBCSupport());
         $this->assertTrue($policy->isReportOnly());
     }
 
-    public function testInternalSource()
+    public function testInternalSource(): void
     {
         $policy = new CSPPolicy(null, [], false, false);
 
@@ -51,7 +46,7 @@ class CSPPolicyTest extends TestCase
         $this->assertSame('script-src \'self\'', $policy->render());
     }
 
-    public function testPolicyConstructor()
+    public function testPolicyConstructor(): void
     {
         $directives = [
             'script-src' => ['whatever'],
@@ -62,7 +57,7 @@ class CSPPolicyTest extends TestCase
         $this->assertSame('script-src whatever', $policy->render());
     }
 
-    public function testUnknownDirectiveConstructor()
+    public function testUnknownDirectiveConstructor(): void
     {
         $directives = [
             'unknown' => ['whatever'],
@@ -74,7 +69,7 @@ class CSPPolicyTest extends TestCase
         new CSPPolicy(null, $directives, false, false);
     }
 
-    public function testUnknownDirective()
+    public function testUnknownDirective(): void
     {
         $policy = new CSPPolicy(null, [], false, false);
 
@@ -84,24 +79,26 @@ class CSPPolicyTest extends TestCase
         $policy->addPolicy('unknown', 'whatever');
     }
 
-    public function testWithReport()
+    public function testWithReport(): void
     {
-        $reportTo = $this->prophesize(ReportTo::class);
-        $reportTo->getGroupName()->willReturn('group');
-        $reportTo->getUrlEndpoints(Argument::any())->willReturn(['url']);
-        $policy = new CSPPolicy($reportTo->reveal(), [], false, false);
+        $reportTo = $this->createStub(ReportTo::class);
+        $reportTo->method('getGroupName')->willReturn('group');
+        $reportTo->method('getUrlEndpoints')->willReturn(['url']);
+
+        $policy = new CSPPolicy($reportTo, [], false, false);
 
         $policy->addPolicy('script-src', 'whatever');
 
         $this->assertSame('script-src whatever; report-to group', $policy->render());
     }
 
-    public function testWithReportBCSupport()
+    public function testWithReportBCSupport(): void
     {
-        $reportTo = $this->prophesize(ReportTo::class);
-        $reportTo->getGroupName()->willReturn('group');
-        $reportTo->getUrlEndpoints(Argument::any())->willReturn(['url']);
-        $policy = new CSPPolicy($reportTo->reveal(), [], false, true);
+        $reportTo = $this->createStub(ReportTo::class);
+        $reportTo->method('getGroupName')->willReturn('group');
+        $reportTo->method('getUrlEndpoints')->willReturn(['url']);
+
+        $policy = new CSPPolicy($reportTo, [], false, true);
 
         $policy->addPolicy('script-src', 'whatever');
 
