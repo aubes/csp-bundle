@@ -5,30 +5,33 @@ declare(strict_types=1);
 namespace Aubes\CSPBundle\Tests;
 
 use Aubes\CSPBundle\CSP;
-use Aubes\CSPBundle\CSPPolicy;
+use Aubes\CSPBundle\Model\CSPPolicy;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Prophecy\Argument;
-use Prophecy\PhpUnit\ProphecyTrait;
 
-/**
- * @covers \Aubes\CSPBundle\CSP
- */
+#[CoversClass(CSP::class)]
 class CSPTest extends TestCase
 {
-    use ProphecyTrait;
-
-    public function testDefault()
+    public function testHasGroup(): void
     {
-        $cspPolicy = $this->prophesize(CSPPolicy::class);
-
-        $csp = new CSP(['group' => $cspPolicy->reveal()], 'group', false);
+        $csp = new CSP(['group' => $this->createMock(CSPPolicy::class)], 'group', false);
 
         $this->assertTrue($csp->hasGroup('group'));
         $this->assertFalse($csp->hasGroup('unknown'));
+    }
+
+    public function testGetPolicies(): void
+    {
+        $csp = new CSP(['group' => $this->createMock(CSPPolicy::class)], 'group', false);
 
         $this->assertEmpty($csp->getPolicies());
         $this->assertArrayHasKey('group', $csp->getPolicies(['group']));
         $this->assertEmpty($csp->getPolicies(['unknown']));
+    }
+
+    public function testEnabled(): void
+    {
+        $csp = new CSP(['group' => $this->createMock(CSPPolicy::class)], 'group', false);
 
         $this->assertTrue($csp->isEnabled());
 
@@ -37,31 +40,65 @@ class CSPTest extends TestCase
 
         $csp->setEnabled(true);
         $this->assertTrue($csp->isEnabled());
+    }
 
-        $cspPolicy->addPolicy(Argument::exact('script-src'), Argument::exact('self'))->shouldBeCalledOnce();
+    public function testAddDirective(): void
+    {
+        $cspPolicy = $this->createMock(CSPPolicy::class);
+        $csp = new CSP(['group' => $cspPolicy], 'group', false);
+
+        $cspPolicy->expects($this->once())
+            ->method('addPolicy')
+            ->with('script-src', 'self');
         $csp->addDirective('script-src', 'self');
+    }
 
-        $cspPolicy->addPolicy(Argument::exact('style-src'), Argument::exact('self'))->shouldBeCalledOnce();
+    public function testAddDirectiveToNamedGroup(): void
+    {
+        $cspPolicy = $this->createMock(CSPPolicy::class);
+
+        $csp = new CSP(['group' => $cspPolicy], 'group', false);
+
+        $cspPolicy->expects($this->once())
+            ->method('addPolicy')
+            ->with('style-src', 'self');
         $csp->addDirective('style-src', 'self', 'group');
     }
 
-    public function testAutoDefault()
+    public function testAutoDefault(): void
     {
-        $cspPolicy = $this->prophesize(CSPPolicy::class);
+        $cspPolicy = $this->createMock(CSPPolicy::class);
 
-        $csp = new CSP(['group' => $cspPolicy->reveal()], 'group', true);
+        $csp = new CSP(['group' => $cspPolicy], 'group', true);
 
         $this->assertArrayHasKey('group', $csp->getPolicies());
         $this->assertArrayHasKey('group', $csp->getPolicies(['group']));
         $this->assertEmpty($csp->getPolicies(['unknown']));
     }
 
-    public function testUnknownDefault()
+    public function testUnknownDefault(): void
     {
-        $cspPolicy = $this->prophesize(CSPPolicy::class);
+        $cspPolicy = $this->createMock(CSPPolicy::class);
 
         $this->expectException(\InvalidArgumentException::class);
 
-        $csp = new CSP(['group' => $cspPolicy->reveal()], 'unknown', false);
+        new CSP(['group' => $cspPolicy], 'unknown', false);
+    }
+
+    public function testReset(): void
+    {
+        $cspPolicy = new CSPPolicy(null, ['script-src' => ['self']], false, false);
+
+        $csp = new CSP(['group' => $cspPolicy], 'group', false);
+
+        $csp->addDirective('script-src', 'unsafe-inline', 'group');
+        $csp->setEnabled(false);
+
+        $csp->reset();
+
+        $this->assertTrue($csp->isEnabled());
+
+        $policies = $csp->getPolicies(['group']);
+        $this->assertSame("script-src 'self'", $policies['group']->render());
     }
 }

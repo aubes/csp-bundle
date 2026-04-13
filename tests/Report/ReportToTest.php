@@ -5,35 +5,59 @@ declare(strict_types=1);
 namespace Aubes\CSPBundle\Tests\Report;
 
 use Aubes\CSPBundle\Report\ReportTo;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Prophecy\Argument;
-use Prophecy\PhpUnit\ProphecyTrait;
-use Symfony\Component\Routing\Router;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RouterInterface;
 
-/**
- * @covers \Aubes\CSPBundle\Report\ReportTo
- */
+#[CoversClass(ReportTo::class)]
 class ReportToTest extends TestCase
 {
-    use ProphecyTrait;
-
-    public function testReportTo()
+    public function testReportTo(): void
     {
-        $router = $this->prophesize(RouterInterface::class);
-        $router->generate(Argument::any(), Argument::any(), Argument::exact(Router::ABSOLUTE_URL))->willReturn('absolute-url');
-        $router->generate(Argument::any(), Argument::any(), Argument::exact(Router::ABSOLUTE_PATH))->willReturn('absolute-path');
+        $router = $this->createStub(RouterInterface::class);
+        $router->method('generate')->willReturnCallback(
+            static function (string $route, array $params, int $referenceType): string {
+                /** @var string $group */
+                $group = $params['group'];
 
-        $report = new ReportTo($router->reveal(), 'group', 100, ['csp_report']);
+                return match ($referenceType) {
+                    UrlGeneratorInterface::ABSOLUTE_URL => 'https://example.com/csp-report/' . $group,
+                    UrlGeneratorInterface::ABSOLUTE_PATH => '/csp-report/' . $group,
+                    default => throw new \LogicException('Unexpected reference type'),
+                };
+            }
+        );
 
-        $this->assertSame(['absolute-url'], $report->getUrlEndpoints());
-        $this->assertSame(['absolute-path'], $report->getUrlEndpoints(false));
+        $report = new ReportTo($router, 'group', 100, ['csp_report']);
+
+        $this->assertSame(['https://example.com/csp-report/group'], $report->getUrlEndpoints());
+        $this->assertSame(['/csp-report/group'], $report->getUrlEndpoints(false));
         $this->assertSame('group', $report->getGroupName());
         $this->assertSame(100, $report->getMaxAge());
+    }
 
-        $rendered = $report->render();
-        $this->assertArrayHasKey('group', $rendered);
-        $this->assertArrayHasKey('max_age', $rendered);
-        $this->assertArrayHasKey('endpoints', $rendered);
+    public function testRenderReportTo(): void
+    {
+        $router = $this->createStub(RouterInterface::class);
+        $router->method('generate')->willReturn('https://example.com/csp-report');
+
+        $report = new ReportTo($router, 'group', 3600, ['csp_report']);
+
+        $rendered = $report->renderReportTo();
+        $this->assertSame('group', $rendered['group']);
+        $this->assertSame(3600, $rendered['max_age']);
+        $this->assertCount(1, $rendered['endpoints']);
+        $this->assertSame('https://example.com/csp-report', $rendered['endpoints'][0]['url']);
+    }
+
+    public function testRenderReportingEndpoints(): void
+    {
+        $router = $this->createStub(RouterInterface::class);
+        $router->method('generate')->willReturn('https://example.com/csp-report');
+
+        $report = new ReportTo($router, 'group', 3600, ['csp_report']);
+
+        $this->assertSame('group="https://example.com/csp-report"', $report->renderReportingEndpoints());
     }
 }

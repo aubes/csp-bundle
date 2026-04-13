@@ -5,102 +5,216 @@ declare(strict_types=1);
 namespace Aubes\CSPBundle\Tests\Twig;
 
 use Aubes\CSPBundle\CSP;
-use Aubes\CSPBundle\CSPPolicy;
-use Aubes\CSPBundle\Report\ReportTo;
 use Aubes\CSPBundle\Twig\CSPExtension;
 use Aubes\CSPBundle\Uid\GeneratorInterface;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Prophecy\Argument;
-use Prophecy\PhpUnit\ProphecyTrait;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 
-/**
- * @covers \Aubes\CSPBundle\Twig\CSPExtension
- */
+#[CoversClass(CSPExtension::class)]
 class CSPExtensionTest extends TestCase
 {
-    use ProphecyTrait;
-
-    public function testNonce()
+    /** @param list<string> $cspGroups */
+    private function createRequestStack(array $cspGroups = []): RequestStack
     {
-        $policy = $this->mockPolicy();
+        $requestStack = new RequestStack();
+        $request = new Request();
 
-        $csp = $this->mockCsp([$policy->reveal()], null, true, false, false);
-        $csp->addDirective(Argument::exact('script-src'), Argument::exact('\'nonce-MTIzNDU2Nzg=\''), Argument::exact(null))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('script-src'), Argument::exact('\'nonce-MTIzNDU2Nzg=\''), Argument::exact('group'))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('script-src'), Argument::exact('\'nonce-123456\''), Argument::exact('group'))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('script-src'), Argument::exact('\'nonce-123456\''), Argument::exact(null))->shouldBeCalledOnce();
+        if ($cspGroups !== []) {
+            $request->attributes->set('_csp_groups', $cspGroups);
+        }
 
-        $generator = $this->mockGenerator(8, '12345678');
+        $requestStack->push($request);
 
-        $extension = new CSPExtension($csp->reveal(), $generator->reveal());
+        return $requestStack;
+    }
+
+    public function testNonceGenerated(): void
+    {
+        $rawBytes = \random_bytes(16);
+        $expectedNonce = \base64_encode($rawBytes);
+
+        $generator = $this->createMock(GeneratorInterface::class);
+        $generator->expects($this->once())->method('generate')->with(16)->willReturn($rawBytes);
+
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->once())
+            ->method('addDirective')
+            ->with('script-src', "'nonce-{$expectedNonce}'", null);
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+
+        $result = $extension->nonce('script-src');
+        $this->assertSame('nonce="' . $expectedNonce . '"', $result);
+    }
+
+    public function testNonceCustom(): void
+    {
+        $generator = $this->createStub(GeneratorInterface::class);
+
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->once())
+            ->method('addDirective')
+            ->with('script-src', "'nonce-custom123'", 'group');
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+
+        $result = $extension->nonce('script-src', 'group', 'custom123');
+        $this->assertSame('nonce="custom123"', $result);
+    }
+
+    public function testScriptNonce(): void
+    {
+        $rawBytes = \random_bytes(16);
+        $expectedNonce = \base64_encode($rawBytes);
+
+        $generator = $this->createStub(GeneratorInterface::class);
+        $generator->method('generate')->willReturn($rawBytes);
+
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->once())
+            ->method('addDirective')
+            ->with('script-src', "'nonce-{$expectedNonce}'", null);
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+
+        $this->assertSame('nonce="' . $expectedNonce . '"', $extension->scriptNonce());
+    }
+
+    public function testStyleNonce(): void
+    {
+        $rawBytes = \random_bytes(16);
+        $expectedNonce = \base64_encode($rawBytes);
+
+        $generator = $this->createStub(GeneratorInterface::class);
+        $generator->method('generate')->willReturn($rawBytes);
+
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->once())
+            ->method('addDirective')
+            ->with('style-src', "'nonce-{$expectedNonce}'", null);
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+
+        $this->assertSame('nonce="' . $expectedNonce . '"', $extension->styleNonce());
+    }
+
+    public function testHash(): void
+    {
+        $content = 'alert("hello")';
+        $expectedHash = \base64_encode(\hash('sha256', $content, true));
+
+        $generator = $this->createStub(GeneratorInterface::class);
+
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->once())
+            ->method('addDirective')
+            ->with('script-src', "'sha256-{$expectedHash}'", null);
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+        $extension->hash('script-src', $content);
+    }
+
+    public function testHashSha384(): void
+    {
+        $content = 'body { color: red }';
+        $expectedHash = \base64_encode(\hash('sha384', $content, true));
+
+        $generator = $this->createStub(GeneratorInterface::class);
+
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->once())
+            ->method('addDirective')
+            ->with('style-src', "'sha384-{$expectedHash}'", 'mygroup');
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+        $extension->hash('style-src', $content, 'sha384', 'mygroup');
+    }
+
+    public function testHashInvalidAlgorithm(): void
+    {
+        $generator = $this->createStub(GeneratorInterface::class);
+        $csp = $this->createStub(CSP::class);
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unsupported hash algorithm "md5"');
+
+        $extension->hash('script-src', 'content', 'md5');
+    }
+
+    public function testNonceInvalidFormat(): void
+    {
+        $generator = $this->createStub(GeneratorInterface::class);
+        $csp = $this->createStub(CSP::class);
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid nonce value');
+
+        $extension->nonce('script-src', null, '" onload="alert(1)');
+    }
+
+    public function testNonceValidBase64Accepted(): void
+    {
+        $generator = $this->createStub(GeneratorInterface::class);
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->once())->method('addDirective');
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack());
+
+        $result = $extension->nonce('script-src', null, 'YWJjZGVm+/==');
+        $this->assertSame('nonce="YWJjZGVm+/=="', $result);
+    }
+
+    public function testNonceAddedToAllActiveGroups(): void
+    {
+        $rawBytes = \random_bytes(16);
+        $expectedNonce = \base64_encode($rawBytes);
+
+        $generator = $this->createStub(GeneratorInterface::class);
+        $generator->method('generate')->willReturn($rawBytes);
+
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->exactly(2))
+            ->method('addDirective')
+            ->willReturnCallback(static function (string $directive, string $value, ?string $group) use ($expectedNonce): void {
+                /** @var int $call */
+                static $call = 0;
+                ++$call;
+
+                match ($call) {
+                    1 => self::assertSame('group_a', $group),
+                    2 => self::assertSame('group_b', $group),
+                    default => self::fail('Unexpected call'),
+                };
+
+                self::assertSame('script-src', $directive);
+                self::assertSame("'nonce-{$expectedNonce}'", $value);
+            });
+
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack(['group_a', 'group_b']));
 
         $extension->nonce('script-src');
-        $extension->nonce('script-src', 'group');
-        $extension->nonce('script-src', 'group', '123456');
-        $extension->nonce('script-src', null, '123456');
     }
 
-    public function testScriptNonce()
+    public function testNonceExplicitGroupIgnoresRequestGroups(): void
     {
-        $policy = $this->mockPolicy();
+        $rawBytes = \random_bytes(16);
 
-        $csp = $this->mockCsp([$policy->reveal()], null, true, false, false);
-        $csp->addDirective(Argument::exact('script-src'), Argument::exact('\'nonce-MTIzNDU2Nzg=\''), Argument::exact(null))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('script-src'), Argument::exact('\'nonce-MTIzNDU2Nzg=\''), Argument::exact('group'))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('script-src'), Argument::exact('\'nonce-123456\''), Argument::exact('group'))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('script-src'), Argument::exact('\'nonce-123456\''), Argument::exact(null))->shouldBeCalledOnce();
+        $generator = $this->createStub(GeneratorInterface::class);
+        $generator->method('generate')->willReturn($rawBytes);
 
-        $generator = $this->mockGenerator(8, '12345678');
+        $csp = $this->createMock(CSP::class);
+        $csp->expects($this->once())
+            ->method('addDirective')
+            ->with('script-src', $this->anything(), 'explicit');
 
-        $extension = new CSPExtension($csp->reveal(), $generator->reveal());
+        $extension = new CSPExtension($csp, $generator, $this->createRequestStack(['group_a', 'group_b']));
 
-        $extension->scriptNonce();
-        $extension->scriptNonce('group');
-        $extension->scriptNonce('group', '123456');
-        $extension->scriptNonce(null, '123456');
-    }
-
-    public function testStyleNonce()
-    {
-        $policy = $this->mockPolicy();
-
-        $csp = $this->mockCsp([$policy->reveal()], null, true, false, false);
-        $csp->addDirective(Argument::exact('style-src'), Argument::exact('\'nonce-MTIzNDU2Nzg=\''), Argument::exact(null))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('style-src'), Argument::exact('\'nonce-MTIzNDU2Nzg=\''), Argument::exact('group'))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('style-src'), Argument::exact('\'nonce-123456\''), Argument::exact('group'))->shouldBeCalledOnce();
-        $csp->addDirective(Argument::exact('style-src'), Argument::exact('\'nonce-123456\''), Argument::exact(null))->shouldBeCalledOnce();
-
-        $generator = $this->mockGenerator(8, '12345678');
-
-        $extension = new CSPExtension($csp->reveal(), $generator->reveal());
-
-        $extension->styleNonce();
-        $extension->styleNonce('group');
-        $extension->styleNonce('group', '123456');
-        $extension->styleNonce(null, '123456');
-    }
-
-    protected function mockPolicy()
-    {
-        $policy = $this->prophesize(CSPPolicy::class);
-
-        return $policy;
-    }
-
-    protected function mockCsp(array $policies, ?ReportTo $reportTo, bool $enabled, bool $reportOnly, bool $bcSupport)
-    {
-        $csp = $this->prophesize(CSP::class);
-        $csp->isEnabled()->willReturn($enabled);
-        $csp->getPolicies(Argument::any())->willReturn($policies);
-
-        return $csp;
-    }
-
-    protected function mockGenerator(int $length, string $return)
-    {
-        $generator = $this->prophesize(GeneratorInterface::class);
-        $generator->generate(Argument::exact($length))->willReturn($return);
-
-        return $generator;
+        $extension->nonce('script-src', 'explicit');
     }
 }

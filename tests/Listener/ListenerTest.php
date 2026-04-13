@@ -5,42 +5,25 @@ declare(strict_types=1);
 namespace Aubes\CSPBundle\Tests\Listener;
 
 use Aubes\CSPBundle\CSP;
-use Aubes\CSPBundle\CSPPolicy;
 use Aubes\CSPBundle\Listener\CSPListener;
+use Aubes\CSPBundle\Model\CSPPolicy;
 use Aubes\CSPBundle\Report\ReportTo;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Prophecy\Argument;
-use Prophecy\PhpUnit\ProphecyTrait;
-use Symfony\Component\HttpFoundation\ParameterBag;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
-/**
- * @covers \Aubes\CSPBundle\Listener\CSPListener
- */
+#[CoversClass(CSPListener::class)]
 class ListenerTest extends TestCase
 {
-    use ProphecyTrait;
-
-    public function testListener()
+    public function testListener(): void
     {
-        $policies = [
-            'script-src' => [
-                'self',
-            ],
-        ];
+        $csp = $this->mockCsp(['script-src' => ['self']], null, true, false, false);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
 
-        $csp = $this->mockCsp($policies, null, true, false, false);
-
-        $event = $this->createResponseEvent([
-            '_route' => 'whatever',
-            '_csp_groups' => [],
-        ]);
-
-        $listener = new CSPListener($csp->reveal(), []);
-
+        $listener = new CSPListener($csp, []);
         $listener->onKernelResponse($event);
 
         $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy'));
@@ -48,146 +31,158 @@ class ListenerTest extends TestCase
         $this->assertEquals('script-src \'self\'', $event->getResponse()->headers->get('Content-Security-Policy'));
     }
 
-    public function testReportOnly()
+    public function testReportOnly(): void
     {
-        $policies = [
-            'script-src' => [
-                'self',
-            ],
-        ];
+        $csp = $this->mockCsp(['script-src' => ['self']], null, true, true, false);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
 
-        $csp = $this->mockCsp($policies, null, true, true, false);
-
-        $event = $this->createResponseEvent([
-            '_route' => 'whatever',
-            '_csp_groups' => [],
-        ]);
-
-        $listener = new CSPListener($csp->reveal(), []);
-
+        $listener = new CSPListener($csp, []);
         $listener->onKernelResponse($event);
 
         $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy-Report-Only'));
         $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
     }
 
-    public function testWithReport()
+    public function testWithReportModern(): void
     {
-        $policies = [
-            'script-src' => [
-                'self',
-            ],
-        ];
+        $report = $this->createStub(ReportTo::class);
+        $report->method('renderReportingEndpoints')->willReturn('group_test="https://example.com/report"');
+        $report->method('getGroupName')->willReturn('group_test');
 
-        $report = $this->prophesize(ReportTo::class);
-        $report->render()->willReturn(['rendered']);
-        $report->getGroupName()->willReturn('group_test');
+        $csp = $this->mockCsp(['script-src' => ['self']], $report, true, false, false);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
 
-        $csp = $this->mockCsp($policies, $report->reveal(), true, false, false);
-
-        $event = $this->createResponseEvent([
-            '_route' => 'whatever',
-            '_csp_groups' => [],
-        ]);
-
-        $listener = new CSPListener($csp->reveal(), []);
-
+        $listener = new CSPListener($csp, []);
         $listener->onKernelResponse($event);
 
         $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy'));
-        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy-Report-Only'));
+        $this->assertTrue($event->getResponse()->headers->has('Reporting-Endpoints'));
+        $this->assertFalse($event->getResponse()->headers->has('Report-To'));
+        $this->assertEquals('group_test="https://example.com/report"', $event->getResponse()->headers->get('Reporting-Endpoints'));
+    }
 
+    public function testWithReportBCSupport(): void
+    {
+        $report = $this->createStub(ReportTo::class);
+        $report->method('renderReportingEndpoints')->willReturn('group_test="https://example.com/report"');
+        $report->method('renderReportTo')->willReturn(['group' => 'group_test', 'max_age' => 3600, 'endpoints' => [['url' => 'https://example.com/report']]]);
+        $report->method('getGroupName')->willReturn('group_test');
+        $report->method('getUrlEndpoints')->willReturn(['/report']);
+
+        $csp = $this->mockCsp(['script-src' => ['self']], $report, true, false, true);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
+
+        $listener = new CSPListener($csp, []);
+        $listener->onKernelResponse($event);
+
+        $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy'));
+        $this->assertTrue($event->getResponse()->headers->has('Reporting-Endpoints'));
         $this->assertTrue($event->getResponse()->headers->has('Report-To'));
-        $this->assertEquals('[["rendered"]]', $event->getResponse()->headers->get('Report-To'));
     }
 
-    public function testOnReportRoute()
+    public function testOnReportRoute(): void
     {
-        $policies = [
-            'script-src' => [
-                'self',
-            ],
-        ];
+        $csp = $this->mockCsp(['script-src' => ['self']], null, true, false, false);
+        $event = $this->createResponseEvent(['_route' => 'csp-route', '_csp_groups' => []]);
 
-        $csp = $this->mockCsp($policies, null, true, false, false);
+        $listener = new CSPListener($csp, ['csp-route']);
+        $listener->onKernelResponse($event);
 
-        $event = $this->createResponseEvent([
-            '_route' => 'csp-route',
-            '_csp_groups' => [],
+        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
+    }
+
+    public function testCspDisabled(): void
+    {
+        $csp = $this->mockCsp(['script-src' => ['self']], null, false, false, false);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
+
+        $listener = new CSPListener($csp, []);
+        $listener->onKernelResponse($event);
+
+        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
+    }
+
+    public function testCspDisabledByRouteAttribute(): void
+    {
+        $csp = $this->mockCsp(['script-src' => ['self']], null, true, false, false);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => [], '_csp_disabled' => true]);
+
+        $listener = new CSPListener($csp, []);
+        $listener->onKernelResponse($event);
+
+        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
+    }
+
+    public function testMultiGroupSameModeThrowsException(): void
+    {
+        $csp = $this->createStub(CSP::class);
+        $csp->method('isEnabled')->willReturn(true);
+        $csp->method('getPolicies')->willReturn([
+            new CSPPolicy(null, ['script-src' => ['\'self\'']], false, false),
+            new CSPPolicy(null, ['script-src' => ['\'self\'', '\'unsafe-inline\'']], false, false),
         ]);
 
-        $listener = new CSPListener($csp->reveal(), ['csp-route']);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => ['a', 'b']]);
 
+        $listener = new CSPListener($csp, []);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Multiple groups resolve to the same header');
         $listener->onKernelResponse($event);
-
-        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
-        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy-Report-Only'));
     }
 
-    public function testCspDisabled()
+    public function testMultiGroupDifferentModeSeparateHeaders(): void
     {
-        $policies = [
-            'script-src' => [
-                'self',
-            ],
-        ];
-
-        $csp = $this->mockCsp($policies, null, false, false, false);
-
-        $event = $this->createResponseEvent([
-            '_route' => 'whatever',
-            '_csp_groups' => [],
+        $csp = $this->createStub(CSP::class);
+        $csp->method('isEnabled')->willReturn(true);
+        $csp->method('getPolicies')->willReturn([
+            new CSPPolicy(null, ['script-src' => ['\'self\'']], false, false),
+            new CSPPolicy(null, ['script-src' => ['\'self\'', '\'unsafe-inline\'']], true, false),
         ]);
 
-        $listener = new CSPListener($csp->reveal(), []);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => ['a', 'b']]);
 
+        $listener = new CSPListener($csp, []);
+        $listener->onKernelResponse($event);
+
+        $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy'));
+        $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy-Report-Only'));
+        $this->assertEquals('script-src \'self\'', $event->getResponse()->headers->get('Content-Security-Policy'));
+        $this->assertEquals('script-src \'self\' \'unsafe-inline\'', $event->getResponse()->headers->get('Content-Security-Policy-Report-Only'));
+    }
+
+    public function testNotMainRequest(): void
+    {
+        $csp = $this->mockCsp(['script-src' => ['self']], null, true, false, false);
+        $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []], HttpKernelInterface::SUB_REQUEST);
+
+        $listener = new CSPListener($csp, []);
         $listener->onKernelResponse($event);
 
         $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
-        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy-Report-Only'));
     }
 
-    public function testNotMainRequest()
+    /**
+     * @param array<string, mixed> $requestAttributes
+     */
+    private function createResponseEvent(array $requestAttributes, int $requestType = HttpKernelInterface::MAIN_REQUEST): ResponseEvent
     {
-        $policies = [
-            'script-src' => [
-                'self',
-            ],
-        ];
+        $kernel = $this->createStub(HttpKernelInterface::class);
 
-        $csp = $this->mockCsp($policies, null, true, false, false);
+        $request = new Request();
+        $request->attributes->add($requestAttributes);
 
-        $event = $this->createResponseEvent([
-            '_route' => 'whatever',
-            '_csp_groups' => [],
-        ], HttpKernelInterface::SUB_REQUEST);
-
-        $listener = new CSPListener($csp->reveal(), []);
-
-        $listener->onKernelResponse($event);
-
-        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
-        $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy-Report-Only'));
+        return new ResponseEvent($kernel, $request, $requestType, new Response());
     }
 
-    protected function createResponseEvent(array $requestAttributes, int $requestType = HttpKernelInterface::MAIN_REQUEST)
+    /**
+     * @param array<string, list<string>> $policies
+     */
+    private function mockCsp(array $policies, ?ReportTo $reportTo, bool $enabled, bool $reportOnly, bool $bcSupport): CSP
     {
-        $kernel = $this->prophesize(HttpKernelInterface::class);
-
-        $response = $this->prophesize(Response::class);
-        $response->headers = new ParameterBag([]);
-
-        $request = $this->prophesize(Request::class);
-        $request->attributes = new ParameterBag($requestAttributes);
-
-        return new ResponseEvent($kernel->reveal(), $request->reveal(), $requestType, $response->reveal());
-    }
-
-    protected function mockCsp(array $policies, ?ReportTo $reportTo, bool $enabled, bool $reportOnly, bool $bcSupport)
-    {
-        $csp = $this->prophesize(CSP::class);
-        $csp->isEnabled()->willReturn($enabled);
-        $csp->getPolicies(Argument::any())->willReturn([
+        $csp = $this->createStub(CSP::class);
+        $csp->method('isEnabled')->willReturn($enabled);
+        $csp->method('getPolicies')->willReturn([
             new CSPPolicy($reportTo, $policies, $reportOnly, $bcSupport),
         ]);
 
