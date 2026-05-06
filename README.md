@@ -70,17 +70,24 @@ csp:
 
 ### Presets
 
-Three built-in presets provide sensible defaults:
+Three built-in presets provide sensible defaults. Preset policies are merged with your custom policies: your policies extend the preset, they don't replace it.
 
-| Preset | Description |
-|---|---|
-| `strict` | Nonce-based with `strict-dynamic`, `object-src 'none'`, `base-uri 'none'` |
-| `permissive` | `'self'` + `'unsafe-inline'`, suitable for legacy apps that cannot use nonces |
-| `api` | `default-src 'none'`, no framing, no forms |
+#### `strict`
 
-Preset policies are merged with your custom policies. Your policies extend the preset, they don't replace it.
+Nonce-based policy with `strict-dynamic`. Recommended starting point when your templates can inject nonces on inline scripts and styles.
 
-> **Note:** The `strict` preset uses `strict-dynamic` which requires nonces to work. Without nonces, all scripts will be blocked. Make sure you use the Twig nonce helpers in your templates:
+```text
+default-src 'self'
+script-src  'strict-dynamic' 'unsafe-inline' https:
+style-src   'self'
+object-src  'none'
+base-uri    'none'
+form-action 'self'
+frame-ancestors 'self'
+upgrade-insecure-requests
+```
+
+> **Important:** `strict-dynamic` requires nonces to work. Modern browsers (CSP Level 3) ignore the `'unsafe-inline'` / `https:` fallbacks once `'strict-dynamic'` is enforced, so without nonces all your inline scripts will be blocked there. Use the Twig nonce helpers in your templates:
 >
 > ```twig
 > {# Block tag (recommended) #}
@@ -93,6 +100,39 @@ Preset policies are merged with your custom policies. Your policies extend the p
 >     // ...
 > </script>
 > ```
+
+#### `permissive`
+
+Allows `unsafe-inline` and `unsafe-eval`. Designed for legacy apps that cannot adopt nonces yet, but still want defense in depth.
+
+```text
+default-src 'self'
+script-src  'self' 'unsafe-inline' 'unsafe-eval'
+style-src   'self' 'unsafe-inline'
+img-src     'self' data:
+font-src    'self'
+connect-src 'self' https:
+object-src  'none'
+base-uri    'self'
+form-action 'self'
+frame-ancestors 'self'
+upgrade-insecure-requests
+```
+
+This preset is **less secure than `strict`** (no XSS protection from inline scripts), but it's a reasonable baseline while you incrementally add nonces and migrate to `strict`. Pair it with a [gradual rollout](#gradual-rollout).
+
+#### `api`
+
+Locks everything down. Designed for JSON APIs and other endpoints that don't render HTML.
+
+```text
+default-src     'none'
+frame-ancestors 'none'
+base-uri        'none'
+form-action     'none'
+```
+
+Apply this preset to your API controllers via `#[CSPGroup('api')]` or a route default.
 
 ### Directive names
 
