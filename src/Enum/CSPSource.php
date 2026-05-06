@@ -16,6 +16,9 @@ enum CSPSource: string
     case ReportSample = 'report-sample';
     case InlineSpeculationRules = 'inline-speculation-rules';
     case TrustedTypesEval = 'trusted-types-eval';
+    case ReportSha256 = 'report-sha256';
+    case ReportSha384 = 'report-sha384';
+    case ReportSha512 = 'report-sha512';
 
     public function quoted(): string
     {

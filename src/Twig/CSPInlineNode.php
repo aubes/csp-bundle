@@ -12,6 +12,7 @@ class CSPInlineNode extends Node
     public function __construct(
         Node $body,
         private readonly string $type,
+        private readonly string $mode,
         private readonly ?string $groupName,
         int $lineno,
     ) {
@@ -31,7 +32,17 @@ class CSPInlineNode extends Node
             ->write('ob_start();' . "\n")
             ->subcompile($this->getNode('body'))
             ->write('$__csp_content = ob_get_clean();' . "\n")
-            ->write('$__csp_ext = $this->env->getExtension(' . \var_export(CSPExtension::class, true) . ');' . "\n")
+            ->write('$__csp_ext = $this->env->getExtension(' . \var_export(CSPExtension::class, true) . ');' . "\n");
+
+        if ($this->mode === CSPInlineTokenParser::MODE_HASH) {
+            $compiler
+                ->write('$__csp_ext->hash(' . \var_export($directive, true) . ', $__csp_content, \'sha256\', ' . \var_export($this->groupName, true) . ');' . "\n")
+                ->write('echo \'<' . $this->type . '>\' . $__csp_content . \'</' . $this->type . '>\';' . "\n");
+
+            return;
+        }
+
+        $compiler
             ->write('$__csp_nonce = $__csp_ext->nonce(' . \var_export($directive, true) . ', ' . \var_export($this->groupName, true) . ');' . "\n")
             ->write('echo \'<' . $this->type . ' \' . $__csp_nonce . \'>\' . $__csp_content . \'</' . $this->type . '>\';' . "\n");
     }

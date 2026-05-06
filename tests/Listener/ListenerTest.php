@@ -10,20 +10,29 @@ use Aubes\CSPBundle\Model\CSPPolicy;
 use Aubes\CSPBundle\Report\ReportTo;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[CoversClass(CSPListener::class)]
 class ListenerTest extends TestCase
 {
+    private EventDispatcherInterface $dispatcher;
+
+    protected function setUp(): void
+    {
+        $this->dispatcher = new EventDispatcher();
+    }
+
     public function testListener(): void
     {
         $csp = $this->mockCsp(['script-src' => ['self']], null, true, false, false);
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
         $listener->onKernelResponse($event);
 
         $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy'));
@@ -36,7 +45,7 @@ class ListenerTest extends TestCase
         $csp = $this->mockCsp(['script-src' => ['self']], null, true, true, false);
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
         $listener->onKernelResponse($event);
 
         $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy-Report-Only'));
@@ -52,7 +61,7 @@ class ListenerTest extends TestCase
         $csp = $this->mockCsp(['script-src' => ['self']], $report, true, false, false);
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
         $listener->onKernelResponse($event);
 
         $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy'));
@@ -72,7 +81,7 @@ class ListenerTest extends TestCase
         $csp = $this->mockCsp(['script-src' => ['self']], $report, true, false, true);
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
         $listener->onKernelResponse($event);
 
         $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy'));
@@ -85,7 +94,7 @@ class ListenerTest extends TestCase
         $csp = $this->mockCsp(['script-src' => ['self']], null, true, false, false);
         $event = $this->createResponseEvent(['_route' => 'csp-route', '_csp_groups' => []]);
 
-        $listener = new CSPListener($csp, ['csp-route']);
+        $listener = new CSPListener($csp, $this->dispatcher, ['csp-route']);
         $listener->onKernelResponse($event);
 
         $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
@@ -96,7 +105,7 @@ class ListenerTest extends TestCase
         $csp = $this->mockCsp(['script-src' => ['self']], null, false, false, false);
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []]);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
         $listener->onKernelResponse($event);
 
         $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
@@ -107,7 +116,7 @@ class ListenerTest extends TestCase
         $csp = $this->mockCsp(['script-src' => ['self']], null, true, false, false);
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => [], '_csp_disabled' => true]);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
         $listener->onKernelResponse($event);
 
         $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));
@@ -124,7 +133,7 @@ class ListenerTest extends TestCase
 
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => ['a', 'b']]);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
 
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('Multiple groups resolve to the same header');
@@ -142,7 +151,7 @@ class ListenerTest extends TestCase
 
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => ['a', 'b']]);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
         $listener->onKernelResponse($event);
 
         $this->assertTrue($event->getResponse()->headers->has('Content-Security-Policy'));
@@ -156,7 +165,7 @@ class ListenerTest extends TestCase
         $csp = $this->mockCsp(['script-src' => ['self']], null, true, false, false);
         $event = $this->createResponseEvent(['_route' => 'whatever', '_csp_groups' => []], HttpKernelInterface::SUB_REQUEST);
 
-        $listener = new CSPListener($csp, []);
+        $listener = new CSPListener($csp, $this->dispatcher, []);
         $listener->onKernelResponse($event);
 
         $this->assertFalse($event->getResponse()->headers->has('Content-Security-Policy'));

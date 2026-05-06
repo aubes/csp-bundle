@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Aubes\CSPBundle\Listener;
 
 use Aubes\CSPBundle\CSP;
+use Aubes\CSPBundle\Event\CSPHeaderEvent;
 use Aubes\CSPBundle\Model\CSPPolicy;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class CSPListener
 {
@@ -16,6 +18,7 @@ class CSPListener
      */
     public function __construct(
         private readonly CSP $csp,
+        private readonly EventDispatcherInterface $dispatcher,
         private readonly array $reportRoutes,
     ) {
     }
@@ -52,7 +55,13 @@ class CSPListener
         /** @var list<string> $currentGroupNames */
         $currentGroupNames = (array) $event->getRequest()->attributes->get('_csp_groups', []);
 
-        foreach ($this->csp->getPolicies($currentGroupNames) as $policy) {
+        $activePolicies = $this->csp->getPolicies($currentGroupNames);
+
+        if ($activePolicies !== []) {
+            $this->dispatcher->dispatch(new CSPHeaderEvent($event->getRequest(), $activePolicies));
+        }
+
+        foreach ($activePolicies as $policy) {
             $headerName = $policy->isReportOnly() ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
             $policiesByHeader[$headerName][] = $policy;
 

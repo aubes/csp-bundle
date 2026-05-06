@@ -125,6 +125,7 @@ class CSPBundle extends AbstractBundle
             ->set(CSPListener::class)
                 ->args([
                     '$csp' => new Reference(CSP::class),
+                    '$dispatcher' => new Reference('event_dispatcher'),
                 ])
                 ->autoconfigure()
 
