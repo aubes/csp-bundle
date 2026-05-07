@@ -9,8 +9,12 @@ use Twig\TokenParser\AbstractTokenParser;
 
 class CSPInlineTokenParser extends AbstractTokenParser
 {
+    public const MODE_NONCE = 'nonce';
+    public const MODE_HASH = 'hash';
+
     public function __construct(
         private readonly string $type,
+        private readonly string $mode = self::MODE_NONCE,
     ) {
     }
 
@@ -26,15 +30,18 @@ class CSPInlineTokenParser extends AbstractTokenParser
 
         $stream->expect(Token::BLOCK_END_TYPE);
 
-        $body = $this->parser->subparse(fn (Token $token) => $token->test('end_csp_' . $this->type), true);
+        $endTag = 'end_' . $this->getTag();
+        $body = $this->parser->subparse(static fn (Token $token) => $token->test($endTag), true);
 
         $stream->expect(Token::BLOCK_END_TYPE);
 
-        return new CSPInlineNode($body, $this->type, $groupName, $token->getLine());
+        return new CSPInlineNode($body, $this->type, $this->mode, $groupName, $token->getLine());
     }
 
     public function getTag(): string
     {
-        return 'csp_' . $this->type;
+        return $this->mode === self::MODE_HASH
+            ? 'csp_' . $this->type . '_hash'
+            : 'csp_' . $this->type;
     }
 }

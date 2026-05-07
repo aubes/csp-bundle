@@ -162,6 +162,10 @@ class CSPCheckCommand extends Command
     {
         foreach (['script-src', 'script-src-elem', 'script-src-attr'] as $directive) {
             if (isset($directives[$directive]) && \in_array("'unsafe-inline'", $directives[$directive], true)) {
+                if (\in_array("'strict-dynamic'", $directives[$directive], true)) {
+                    continue;
+                }
+
                 if (!$this->hasNonceOrHash($directives[$directive])) {
                     $this->finding('error', $group, $directive, "'unsafe-inline' allows execution of arbitrary inline scripts.");
                 }

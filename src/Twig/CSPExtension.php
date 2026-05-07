@@ -29,6 +29,8 @@ class CSPExtension extends AbstractExtension
         return [
             new CSPInlineTokenParser('script'),
             new CSPInlineTokenParser('style'),
+            new CSPInlineTokenParser('script', CSPInlineTokenParser::MODE_HASH),
+            new CSPInlineTokenParser('style', CSPInlineTokenParser::MODE_HASH),
         ];
     }
 

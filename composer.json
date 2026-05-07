@@ -16,6 +16,8 @@
     "require": {
         "php": ">=8.2",
         "psr/log": "^2.0 | ^3.0",
+        "symfony/event-dispatcher": "^6.4 | ^7.4 | ^8.0",
+        "symfony/event-dispatcher-contracts": "^3.0",
         "symfony/framework-bundle": "^6.4 | ^7.4 | ^8.0",
         "symfony/http-foundation": "^6.4 | ^7.4 | ^8.0",
         "symfony/http-kernel": "^6.4 | ^7.4 | ^8.0",

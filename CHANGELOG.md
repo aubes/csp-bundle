@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.1.0]
+
+### Changed
+
+- **`strict` preset**: added `'unsafe-inline'` and `https:` as CSP Level 1/2 fallbacks alongside `'strict-dynamic'` (modern browsers ignore them when `'strict-dynamic'` is set), and added `form-action 'self'`.
+- **`permissive` preset**: added `'unsafe-eval'` to `script-src` (most legacy apps that need `unsafe-inline` also need `eval`), `connect-src 'self' https:` for XHR/fetch/WebSocket calls, and `form-action 'self'`.
+
+### Fixed
+
+- `csp:check` no longer reports `'unsafe-inline'` as an error when `'strict-dynamic'` is present in the same directive (CSP Level 3 browsers ignore `'unsafe-inline'` in that case, so it's a CSP1/2 fallback, not a vulnerability).
+
+### Added
+
+- **`CSPHeaderEvent`**: dispatched on every response after active groups are resolved and before headers are rendered. Listeners can mutate the active `CSPPolicy` instances to apply cross-cutting changes. See `docs/advanced.md#cspheaderevent`.
+- **CSP Level 3 hash-reporting sources**: `'report-sha256'`, `'report-sha384'`, `'report-sha512'` added to the `CSPSource` enum. Use them in `script-src` / `style-src` to ask browsers to include the SHA hash of the blocked resource in violation reports (useful for iterating a `strict-dynamic` policy).
+- **Hash block tags**: `{% csp_script_hash %}...{% end_csp_script_hash %}` and `{% csp_style_hash %}...{% end_csp_style_hash %}` capture the inline content, compute its sha256 hash, and add it to the corresponding directive. No `nonce` attribute on the rendered tag, so the page stays cache-friendly. See `docs/twig.md#hash-block-tags`.
+
 ## [2.0.0]
 
 ### Breaking changes
@@ -49,4 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `symfony/twig-bundle` is now optional: install it explicitly if you use nonce/hash Twig helpers
 
+[Unreleased]: https://github.com/aubes/csp-bundle/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/aubes/csp-bundle/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/aubes/csp-bundle/compare/v1.0.0...v2.0.0
