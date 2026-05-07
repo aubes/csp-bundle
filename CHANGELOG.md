@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.1.0]
+
+### Changed
+
+- **`strict` preset**: added `'unsafe-inline'` and `https:` as CSP Level 1/2 fallbacks alongside `'strict-dynamic'` (modern browsers ignore them when `'strict-dynamic'` is set), and added `form-action 'self'`.
+- **`permissive` preset**: added `'unsafe-eval'` to `script-src` (most legacy apps that need `unsafe-inline` also need `eval`), `connect-src 'self' https:` for XHR/fetch/WebSocket calls, and `form-action 'self'`.
+
+### Fixed
+
+- `csp:check` no longer reports `'unsafe-inline'` as an error when `'strict-dynamic'` is present in the same directive (CSP Level 3 browsers ignore `'unsafe-inline'` in that case, so it's a CSP1/2 fallback, not a vulnerability).
+
 ## [2.0.0]
 
 ### Breaking changes
@@ -49,4 +62,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `symfony/twig-bundle` is now optional: install it explicitly if you use nonce/hash Twig helpers
 
+[2.1.0]: https://github.com/aubes/csp-bundle/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/aubes/csp-bundle/compare/v1.0.0...v2.0.0
