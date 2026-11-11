@@ -162,6 +162,10 @@ class CSPCheckCommand extends Command
     {
         foreach (['script-src', 'script-src-elem', 'script-src-attr'] as $directive) {
             if (isset($directives[$directive]) && \in_array("'unsafe-inline'", $directives[$directive], true)) {
+                if (\in_array("'strict-dynamic'", $directives[$directive], true)) {
+                    continue;
+                }
+
                 if (!$this->hasNonceOrHash($directives[$directive])) {
                     $this->finding('error', $group, $directive, "'unsafe-inline' allows execution of arbitrary inline scripts.");
                 }
@@ -316,7 +320,7 @@ class CSPCheckCommand extends Command
             }
 
             if (\in_array("'strict-dynamic'", $directives[$directive], true) && !$this->hasNonceOrHash($directives[$directive])) {
-                $this->finding('error', $group, $directive, "'strict-dynamic' without nonce or hash has no effect. Scripts will be blocked.");
+                $this->finding('info', $group, $directive, "'strict-dynamic' without nonce or hash in the configuration. Scripts will be blocked unless nonces or hashes are added at runtime (Twig helpers, addDirective()).");
             }
         }
     }

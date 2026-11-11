@@ -23,6 +23,10 @@ class CSPPolicy
         private readonly bool $bcSupport,
     ) {
         foreach ($policies as $directive => $policy) {
+            if ($policy === [] && \in_array($directive, [CSPDirective::UpgradeInsecureRequests->value, CSPDirective::Sandbox->value], true)) {
+                $this->policies[$directive] = [];
+            }
+
             foreach ($policy as $source) {
                 $this->addPolicy($directive, $source);
             }
@@ -73,7 +77,7 @@ class CSPPolicy
         $output = [];
 
         foreach ($this->policies as $directive => $policy) {
-            $output[] = $directive . ' ' . \implode(' ', $policy);
+            $output[] = $policy === [] ? $directive : $directive . ' ' . \implode(' ', $policy);
         }
 
         if ($this->reportTo !== null) {

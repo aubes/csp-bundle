@@ -29,8 +29,15 @@ class CSPInlineNode extends Node
         $compiler
             ->addDebugInfo($this)
             ->write('ob_start();' . "\n")
+            ->write('try {' . "\n")
+            ->indent()
             ->subcompile($this->getNode('body'))
+            ->outdent()
+            ->write('} finally {' . "\n")
+            ->indent()
             ->write('$__csp_content = ob_get_clean();' . "\n")
+            ->outdent()
+            ->write('}' . "\n")
             ->write('$__csp_ext = $this->env->getExtension(' . \var_export(CSPExtension::class, true) . ');' . "\n")
             ->write('$__csp_nonce = $__csp_ext->nonce(' . \var_export($directive, true) . ', ' . \var_export($this->groupName, true) . ');' . "\n")
             ->write('echo \'<' . $this->type . ' \' . $__csp_nonce . \'>\' . $__csp_content . \'</' . $this->type . '>\';' . "\n");

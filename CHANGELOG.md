@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1]
+
+### Fixed
+
+- **Worker mode**: the `CSP` service is now tagged `kernel.reset`, so its state is reset between requests in long-running runtimes (FrankenPHP worker). Previously `reset()` was never called: nonces, hashes, dynamic directives and `setEnabled(false)` leaked into subsequent requests, keeping previously issued nonces valid and growing the header unboundedly.
+- **`upgrade-insecure-requests`**: the directive was silently dropped from the header because it has no sources. It is now rendered, both from the `strict` and `permissive` presets and from `upgrade_insecure_requests: []` in `policies`. The same applies to `sandbox: []`, which is valid without value and applies all restrictions. Other directives configured without sources are still omitted.
+- **Violation reporting**: `ReportController` is now tagged `controller.service_arguments`. The service was private and not registered as a controller, so every `POST /csp-report/{group}` failed with a 500 error and no `CSPViolationEvent` was dispatched.
+- **Configuration**: a missing `reporting.max_age` triggered a PHP warning and a `TypeError` when the `CSP` service was built. It is now required, and must be greater than or equal to 0.
+- **Twig block tags**: `{% csp_script %}` and `{% csp_style %}` now close their output buffer when the block body throws an exception while the template is rendered with `display()` (for example `AbstractController::stream()`). `render()` was not affected.
+- **Docs**: the gradual rollout recipe now targets the report-only group in step 2 (`{% csp_script 'strict' %}`). Without a group name, the nonce was also added to the enforced group, where it disabled `'unsafe-inline'` and blocked the inline scripts not migrated yet.
+- `csp:check` reports `'strict-dynamic'` without nonce or hash as `INFO` instead of `ERROR`, since nonces are added at runtime by the Twig helpers. The command no longer exits with code `1` on the `strict` preset.
+- `csp:check` no longer reports `'unsafe-inline'` as an error when `'strict-dynamic'` is present in the same directive (CSP Level 3 browsers ignore `'unsafe-inline'` in that case, so it's a CSP1/2 fallback, not a vulnerability).
+
 ## [2.0.0]
 
 ### Breaking changes
@@ -49,4 +62,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `symfony/twig-bundle` is now optional: install it explicitly if you use nonce/hash Twig helpers
 
+[2.0.1]: https://github.com/aubes/csp-bundle/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/aubes/csp-bundle/compare/v1.0.0...v2.0.0

@@ -402,13 +402,15 @@ The `permissive` group enforces (nothing breaks), while `strict` runs in report-
 
 ### Step 2: fix violations
 
-Review reports and add nonces to your inline scripts and styles:
+Review reports and add nonces to your inline scripts and styles, targeting the report-only group:
 
 ```twig
-{% csp_script %}
+{% csp_script 'strict' %}
     document.getElementById('app').textContent = 'Hello!';
 {% end_csp_script %}
 ```
+
+Without a group name, the nonce is added to every active group, including the enforced `default` group. Browsers ignore `'unsafe-inline'` as soon as a directive contains a nonce or a hash, so all inline scripts without a nonce would be blocked. With the group name, the enforced group keeps allowing the script through `'unsafe-inline'`.
 
 ### Step 3: switch to strict
 
@@ -425,6 +427,8 @@ csp:
                 endpoints:
                     - csp_report
 ```
+
+Then remove `#[CSPGroup('strict')]` from your controllers and the group name from the block tags (`{% csp_script %}`): the `strict` group no longer exists, and rendering would fail with `Unknown CSP group "strict"`.
 
 ## Worker mode (FrankenPHP / RoadRunner)
 
