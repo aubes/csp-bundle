@@ -118,6 +118,7 @@ class CSPBundle extends AbstractBundle
             ->set(ReportController::class)
                 ->autowire()
                 ->autoconfigure()
+                ->tag('controller.service_arguments')
 
             ->set(CSPAttributeListener::class)
                 ->args([new Reference(CSP::class)])
