@@ -59,7 +59,7 @@ class CSPBundle extends AbstractBundle
 
                             ->arrayNode('reporting')
                                 ->children()
-                                    ->integerNode('max_age')->end()
+                                    ->integerNode('max_age')->isRequired()->min(0)->end()
                                     ->scalarNode('group_name')
                                         ->defaultNull()
                                         ->validate()
@@ -111,6 +111,7 @@ class CSPBundle extends AbstractBundle
     {
         $container->services()
             ->set(CSP::class)
+                ->tag('kernel.reset', ['method' => 'reset'])
 
             ->set('.aubes_csp.uid_generator', Generator::class)
 
